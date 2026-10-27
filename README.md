@@ -72,6 +72,17 @@ Python >= 3.10。也可以安装为命令（可选）：
 pip install .        # 得到 xuexitong-mcp / xuexitong-cli / xxt / xuexitong-assistant 四个命令
 ```
 
+macOS 使用 CLI / MCP 时，建议在虚拟环境中运行 `python -m pip install -e .`。
+`requirements.txt` 也可安装，但会额外安装 PySide6；`windows-toasts` 和
+`pywin32` 只在 Windows 安装。MCP SDK 限制为 1.x，因为当前服务使用
+`mcp.server.fastmcp.FastMCP` 接口。
+
+新版桌面助手 `python -m assistant.app` 仍依赖 Windows 注册表、命名互斥锁、
+全局热键和 Toast，尚未适配 macOS；安装依赖成功不代表桌面助手可用。
+`xuexitong-assistant` 是旧 Tk 窗口入口，也不代表新版桌面助手的 Mac 支持。
+`xxt courses --json` 可输出课程 JSON。`whoami` 的学校显示为 `?` 表示未从
+个人页面解析到学校名称，不能据此判断登录失败；学校解析仍需真实页面验证。
+
 ## 凭据配置（三选一，优先级从高到低）
 
 1. **调用 `login` 工具时传入** `phone` / `password` 参数

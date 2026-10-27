@@ -391,6 +391,43 @@ def test_json_output_format():
     assert data[0]["name"] == "电磁场与微波技术"     # ensure_ascii=False
 
 
+def test_courses_command_text_and_json():
+    """课程命令的普通输出和 JSON 参数均能走通，不访问真实账号。"""
+    import io
+    import json
+    from contextlib import redirect_stdout
+    from unittest.mock import Mock, patch
+    from xuexitong_mcp import cli as xcli
+
+    client = Mock()
+    client.ensure_login.return_value.ok = True
+    client.fetch_courses.return_value = [
+        {"name": "数字电路", "teacher": "李老师", "courseid": "100", "clazzid": "200"},
+        {"name": "往年课程", "courseid": "101", "clazzid": "201"},
+    ]
+    schedule = {"lessons": [{"name": "数字电路"}]}
+    with patch.object(xcli, "_client", return_value=client), \
+            patch.object(xcli, "_cached_schedule", return_value=schedule):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            assert xcli.main(["courses"]) == 0
+        assert "数字电路" in out.getvalue() and "100/200" in out.getvalue()
+        out = io.StringIO()
+        with redirect_stdout(out):
+            assert xcli.main(["courses", "--json"]) == 0
+        assert json.loads(out.getvalue()) == [
+            {"name": "数字电路", "teacher": "李老师", "courseid": "100",
+             "clazzid": "200", "active": True},
+            {"name": "往年课程", "teacher": "", "courseid": "101",
+             "clazzid": "201", "active": False},
+        ]
+        client.fetch_courses.return_value = []
+        out = io.StringIO()
+        with redirect_stdout(out):
+            assert xcli.main(["courses", "--json"]) == 0
+        assert json.loads(out.getvalue()) == []
+
+
 def run_all() -> int:
     """零依赖测试运行器。"""
     failed = 0

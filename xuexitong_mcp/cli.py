@@ -780,6 +780,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(fn=cmd_whoami)
 
     s = sub.add_parser("courses", help="课程列表（★=本学期）")
+    s.add_argument("--json", action="store_true", help="输出 JSON（脚本/agent 友好）")
     s.set_defaults(fn=cmd_courses)
 
     s = sub.add_parser("today", help="今天的课")
