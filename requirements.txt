@@ -2,6 +2,6 @@ requests>=2.28
 pycryptodome>=3.18
 mcp>=1.2.0,<2
 # 桌面助手（assistant/）
-PySide6>=6.6
+PySide6>=6.9  # RectangularShadow in the upstream QML requires Qt 6.9
 windows-toasts>=1.0; sys_platform == "win32"
 pywin32>=306; sys_platform == "win32"

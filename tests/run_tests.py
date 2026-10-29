@@ -406,7 +406,9 @@ def test_courses_command_text_and_json():
         {"name": "往年课程", "courseid": "101", "clazzid": "201"},
     ]
     schedule = {"lessons": [{"name": "数字电路"}]}
-    with patch.object(xcli, "_client", return_value=client), \
+    # 捕获 stdout 会触发新版 CLI 的自动 JSON；显式表格模式测试文字分支。
+    with patch.dict(os.environ, {"XXT_TABLE": "1"}), \
+            patch.object(xcli, "_client", return_value=client), \
             patch.object(xcli, "_cached_schedule", return_value=schedule):
         out = io.StringIO()
         with redirect_stdout(out):
