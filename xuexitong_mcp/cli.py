@@ -117,7 +117,7 @@ def _login_or_die(cli) -> None:
         msg = str(r.msg).replace("（请调用 login 工具或检查 config.json）",
                                  "").replace("（）", "")
         print(_c(f"登录失败：{msg}".rstrip("：: ")), file=sys.stderr)
-        print("凭据：config.json（phone/password）或环境变量 "
+        print("可运行 xxt login 交互式登录；或配置 config.json、环境变量 "
               "CHAOXING_PHONE / CHAOXING_PASSWORD（与 MCP/桌面助手共用）",
               file=sys.stderr)
         raise SystemExit(2)
@@ -230,6 +230,40 @@ def cmd_whoami(a) -> int:
     print(_row(["学校", p.get("school", "?")], [8, 40]))
     print(_row(["uid", p.get("uid", "?")], [8, 40]))
     return 0
+
+
+def cmd_login(a) -> int:
+    """Interactive sign-in: credentials stay in memory; only session cookies persist."""
+    import getpass
+    import warnings
+    if not sys.stdin.isatty():
+        print("请在交互式终端运行 login；不接受管道传入账号密码。", file=sys.stderr)
+        return 2
+    try:
+        phone = input("学习通手机号：").strip()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", getpass.GetPassWarning)
+            password = getpass.getpass("学习通密码（输入不显示）：")
+        if not phone or not password:
+            print("手机号和密码不能为空。", file=sys.stderr)
+            return 2
+        cli = _client()
+        result = cli.login(phone=phone, password=password)
+        if not result.ok:
+            print("登录失败，请检查账号密码、网络或验证码要求。", file=sys.stderr)
+            return 2
+        print("登录成功。账号密码未写入配置文件；会话 Cookie 保存在本机。")
+        print("会话过期后，请再次运行 login。")
+        return 0
+    except (EOFError, KeyboardInterrupt):
+        print("\n已取消登录。", file=sys.stderr)
+        return 130
+    except getpass.GetPassWarning:
+        print("当前终端无法隐藏密码，请换用 macOS 终端或 VS Code 终端。", file=sys.stderr)
+        return 2
+    except Exception:
+        print("登录请求失败，请检查网络后重试。", file=sys.stderr)
+        return 1
 
 
 def cmd_status(a) -> int:
@@ -1062,6 +1096,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--version", action="version",
                    version=f"xuexitong-cli {_cli_version()}")
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("login", help="交互式登录（密码隐藏，仅保存会话）")
+    s.set_defaults(fn=cmd_login)
 
     s = sub.add_parser("whoami", help="我是谁（姓名/学校/uid）")
     s.add_argument("--json", action="store_true", help="输出 JSON（脚本/agent 友好）")

@@ -10,6 +10,7 @@
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+python -m xuexitong_mcp.cli login
 python -m assistant.app
 ```
 
@@ -40,3 +41,9 @@ Linux 无头环境、PySide6 6.12.0 下复核通过（早期桌面版本亦曾�
 
 Mac 用户已反馈交互登录成功、桌面组件可打开；课表问题确认来自学习通源数据并已恢复。系统字体中文回退、全部菜单快捷键、系统明暗切换、通知权限与实际弹窗、重新登录后的自启仍需逐项验收。没有制作或签名 macOS .app；现有 Windows 打包脚本原样保留。
 
+
+## 交互式登录
+
+运行 `python -m xuexitong_mcp.cli login`，按提示输入手机号与密码。密码隐藏，不提供命令行密码参数；不创建或修改 config.json，不保存账号密码。仅保留本机 session_cookies.json，Unix 权限为 0600。会话过期后再次登录。已有 config.json 不会自动删除；若此前写入真实密码且不再需要自动重登，请自行移除其中凭据。
+
+个人 config.json、session_cookies.json、settings.json 已被 Git 忽略，仓库只提供占位示例。忽略规则不会撤回曾经提交过的秘密。Mac 用户已反馈交互登录成功；Cookie 跨重启复用仍需实测。

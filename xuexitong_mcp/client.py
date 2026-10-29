@@ -462,7 +462,12 @@ class ChaoxingClient:
     def _save_cookies(self) -> None:
         try:
             cookies = {c.name: c.value for c in self.session.cookies}
-            with open(self.cookie_file, "w", encoding="utf-8") as f:
+            # Restrict session secrets before writing, including pre-existing files.
+            fd = os.open(self.cookie_file, os.O_WRONLY | os.O_CREAT, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                if os.name != "nt":
+                    os.fchmod(f.fileno(), 0o600)
+                f.truncate(0)
                 json.dump(cookies, f)
         except Exception:
             pass

@@ -367,3 +367,11 @@ pyproject.toml      # pip install . 打包配置（xuexitong-mcp / xuexitong-cli
 ## License
 
 MIT (c) Wu Jiale
+
+### 不保存账号密码的交互式登录
+
+```sh
+python -m xuexitong_mcp.cli login
+```
+
+在终端按提示输入手机号和密码；密码不显示，也不写入配置文件。仅将会话 Cookie 保存在本机，会话过期后重新运行此命令。个人配置及 Cookie 已列入 `.gitignore`。
