@@ -98,7 +98,7 @@ Item {
                     height: expanded ? 20 + titleCol.height + bodyTxt.height + 16
                             : modelData.content !== "" ? 68 : 54
                     radius: Ui.Theme.radiusLg
-                    color: "#FFFFFF"
+                    color: Ui.Theme.card
                     Behavior on height {
                         NumberAnimation {
                             duration: 180; easing.type: Easing.Bezier
@@ -188,7 +188,7 @@ Item {
             Rectangle {
                 visible: page.shown.length === 0
                 width: parent.width; height: 88; radius: Ui.Theme.radiusLg
-                color: "#FFFFFF"
+                color: Ui.Theme.card
                 Column {
                     anchors.centerIn: parent; spacing: 6
                     Item {

@@ -13,9 +13,9 @@ import "." as Ui
 Window {
     id: root
     width: 492; height: 656          // 卡 460×624 + 四周 16 阴影呼吸边
-    flags: Qt.FramelessWindowHint | Qt.Window
+    flags: (Ui.Theme.isMac ? Qt.Window : Qt.FramelessWindowHint | Qt.Window)
            | (root.pinned ? Qt.WindowStaysOnTopHint : 0)
-    color: "transparent"
+    color: Ui.Theme.isMac ? Ui.Theme.page : "transparent"
     title: "学习通小助手 · 详情"
 
     property bool pinned: false
@@ -37,11 +37,12 @@ Window {
     // 系统级关闭（Alt+F4 等）拦下，走统一退场
     onClosing: close => { close.accepted = false; root.requestClose() }
     // 任务栏/系统最小化 = 变回小窗，不在任务栏挂机
-    onVisibilityChanged: if (visibility === Window.Minimized) root.requestClose()
+    onVisibilityChanged: if (!Ui.Theme.isMac && root.visibility === Window.Minimized) root.requestClose()
 
     // 阴影（金样实测：很轻——0 3 10 rgba(0,0,0,0.06) 量级）
     RectangularShadow {
         anchors.fill: card
+        visible: !Ui.Theme.isMac
         radius: card.radius
         color: "#000000"
         opacity: 0.07
@@ -53,9 +54,9 @@ Window {
     // ===== 卡片本体（透明窗里的圆角卡）=====
     Rectangle {
         id: card
-        x: 16; y: 16
-        width: root.width - 32; height: root.height - 32
-        radius: Ui.Theme.radiusLg
+        x: Ui.Theme.isMac ? 0 : 16; y: x
+        width: root.width - 2 * x; height: root.height - 2 * y
+        radius: Ui.Theme.isMac ? 0 : Ui.Theme.radiusLg
         color: Ui.Theme.page
         border.width: 1; border.color: Ui.Theme.lineSolid
         clip: true
@@ -129,8 +130,8 @@ Window {
                     active: root.pinned
                     onClicked: root.pinned = !root.pinned
                 }
-                WinBtn { kind: "min"; onClicked: root.requestClose() }
-                WinBtn { kind: "close"; onClicked: root.requestClose() }
+                WinBtn { visible: !Ui.Theme.isMac; kind: "min"; onClicked: root.requestClose() }
+                WinBtn { visible: !Ui.Theme.isMac; kind: "close"; onClicked: root.requestClose() }
             }
         }
 
@@ -256,7 +257,7 @@ Window {
                                     (modelData.detail || "") !== ""
                                 height: hasDetail ? 64 : 52
                                 radius: Ui.Theme.radiusLg
-                                color: "#FFFFFF"
+                                color: Ui.Theme.card
                                 opacity: 0
                                 Component.onCompleted: tlStagger.start()
                                 SequentialAnimation {
@@ -358,7 +359,7 @@ Window {
                         Rectangle {
                             visible: DBridge.timeline.length === 0
                             width: parent.width; height: 96; radius: Ui.Theme.radiusLg
-                            color: "#FFFFFF"
+                            color: Ui.Theme.card
                             Column {
                                 anchors.centerIn: parent; spacing: 6
                                 Item {
@@ -428,7 +429,7 @@ Window {
                             visible: !DBridge.hwFailed && DBridge.hw.length === 0
                                      && DBridge.hwIgnored === 0
                             width: parent.width; height: 96; radius: Ui.Theme.radiusLg
-                            color: "#FFFFFF"
+                            color: Ui.Theme.card
                             Column {
                                 anchors.centerIn: parent; spacing: 6
                                 Item {
@@ -462,7 +463,7 @@ Window {
                                 id: hwCard
                                 width: hwCol.width; height: 64
                                 radius: Ui.Theme.radiusLg
-                                color: "#FFFFFF"
+                                color: Ui.Theme.card
                                 opacity: (modelData.urgency === "expired"
                                           || modelData.urgency === "unknown") ? 0.62 : 1
                                 readonly property color urgencyColor:
@@ -639,7 +640,7 @@ Window {
 
                     Component.onCompleted: {
                         const s = DBridge.settings
-                        theme = s.theme || "light"
+                        theme = s.theme || "auto"
                         interval = s.scan_interval_min || 30
                         toastOn = s.toast_enabled !== false
                         dnd = s.dnd || "23:00-07:30"
@@ -681,10 +682,26 @@ Window {
                         // 常规
                         Rectangle {
                             width: parent.width; radius: Ui.Theme.radiusLg
-                            color: "#FFFFFF"
+                            color: Ui.Theme.card
                             height: genCol.height + 16
                             Column {
                                 id: genCol
+                                SetRow {
+                                    label: "外观"
+                                    ComboBox {
+                                        width: 160
+                                        model: ["跟随系统", "浅色", "深色"]
+                                        currentIndex: ["auto", "light", "dark"].indexOf(setFlick.theme)
+                                        onActivated: setFlick.theme = ["auto", "light", "dark"][currentIndex]
+                                        font.family: Ui.Theme.fontFamily
+                                        palette.text: Ui.Theme.fg
+                                        palette.buttonText: Ui.Theme.fg
+                                        palette.button: Ui.Theme.track
+                                        palette.base: Ui.Theme.card
+                                        palette.window: Ui.Theme.card
+                                    }
+                                }
+                                SetSep {}
                                 x: 14; y: 8; width: parent.width - 28; spacing: 0
 
                                 Row {
@@ -762,7 +779,7 @@ Window {
                                 }
                                 SetSep {}
                                 SetRow {
-                                    label: "开机自启"
+                                    label: Ui.Theme.isMac ? "登录时启动" : "开机自启"
                                     SetSwitch {
                                         checked: setFlick.autostart
                                         onToggled: setFlick.autostart = checked
@@ -773,7 +790,8 @@ Window {
                                     label: "快捷键"
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: "Alt+Shift+C 唤起/隐藏小窗"
+                                        text: Ui.Theme.isMac ? "⌘⇧C 切换小窗（应用内）" :
+                                              Qt.platform.os === "windows" ? "Alt+Shift+C 唤起/隐藏小窗" : "通过托盘菜单切换小窗"
                                         color: Ui.Theme.fg3; font.pixelSize: Ui.Theme.fsCap
                                         font.family: Ui.Theme.fontFamily
                                     }
@@ -828,7 +846,7 @@ Window {
                         // 邮件提醒
                         Rectangle {
                             width: parent.width; radius: Ui.Theme.radiusLg
-                            color: "#FFFFFF"
+                            color: Ui.Theme.card
                             height: mailCol.height + 16
                             Column {
                                 id: mailCol

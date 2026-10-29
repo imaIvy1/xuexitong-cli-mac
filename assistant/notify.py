@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""通知通道：Windows Toast（windows-toasts 优先，winotify 回退）+ 可选邮件。
+"""通知通道：Windows Toast / Qt 原生桌面通知回调 + 可选邮件。
 
 优先级路由：
   high   → Toast 横幅（进通知中心）+ 应用内未读
@@ -9,6 +9,7 @@
 import logging
 import os
 import smtplib
+import sys
 from email.header import Header
 from email.mime.text import MIMEText
 
@@ -24,6 +25,8 @@ def ensure_aumid_registered() -> None:
     （pywin32 正规姿势）。已注册过则直接返回；失败静默降级——
     windows-toasts 自带兜底 AUMID，只是归属显示不完美。
     """
+    if sys.platform != "win32":
+        return
     lnk_dir = os.path.join(os.environ.get("APPDATA", ""),
                            r"Microsoft\Windows\Start Menu\Programs")
     lnk = os.path.join(lnk_dir, "学习通小助手.lnk")
@@ -68,6 +71,7 @@ def ensure_aumid_registered() -> None:
 class Notifier:
     def __init__(self, settings: dict):
         self.settings = settings or {}
+        self.native_notify = None
         self._toasts = None          # WindowsToaster（不可点击，轻）
         self._itoasts = None         # InteractableWindowsToaster（带回调，重）
 
@@ -151,12 +155,17 @@ class Notifier:
         lines = [f"【{e.get('tag', '')}】{e.get('course', '')} {e.get('title', '')}"
                  for e in events[:4]]
         body = "\n".join(lines) + ("…" if n > 4 else "")
-        if not self._toast_windows_toasts(title, body):
-            self._toast_winotify(title, body)
+        self.toast_text(title, body)
 
     def toast_text(self, title: str, body: str,
                    on_click=None, click_arg: str = "") -> None:
         if not self.settings.get("toast_enabled", True):
+            return
+        if sys.platform != "win32":
+            if self.native_notify is not None:
+                self.native_notify(title, body)
+            else:
+                log.info("桌面通知未连接：%s — %s", title, body)
             return
         ensure_aumid_registered()
         if on_click is not None and self._clickable_toast(

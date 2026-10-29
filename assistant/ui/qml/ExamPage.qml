@@ -73,7 +73,7 @@ Item {
                     id: exCard
                     width: col.width; height: 58
                     radius: Ui.Theme.radiusLg
-                    color: "#FFFFFF"
+                    color: Ui.Theme.card
                     readonly property bool isLive: modelData.state !== "done"
                     opacity: modelData.state === "done" ? 0.55 : 1
                     // 左缘色条：进行中红 / 未考按天数黄蓝 / 已结束灰
@@ -150,7 +150,7 @@ Item {
             Rectangle {
                 visible: DBridge.exams.length === 0
                 width: parent.width; height: 88; radius: Ui.Theme.radiusLg
-                color: "#FFFFFF"
+                color: Ui.Theme.card
                 Column {
                     anchors.centerIn: parent; spacing: 6
                     Item {
@@ -228,7 +228,7 @@ Item {
             Rectangle {
                 visible: DBridge.progress.rows.length > 0
                 width: parent.width; radius: Ui.Theme.radiusLg
-                color: "#FFFFFF"
+                color: Ui.Theme.card
                 height: pgCol.height + 20
                 Column {
                     id: pgCol
@@ -348,7 +348,7 @@ Item {
             Rectangle {
                 visible: DBridge.progress.rows.length === 0
                 width: parent.width; height: 56; radius: Ui.Theme.radiusLg
-                color: "#FFFFFF"
+                color: Ui.Theme.card
                 Text {
                     anchors.centerIn: parent
                     text: "任务点数据还没拉取（每天自动刷一次，或点右上 ⟳）"

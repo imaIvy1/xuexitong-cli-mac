@@ -9,7 +9,7 @@
   悬停反馈 167ms
 硬规则：退场永远比进场短。
 """
-from PySide6.QtCore import QEasingCurve
+from PySide6.QtCore import QEasingCurve, Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication
 
@@ -72,14 +72,9 @@ DARK = {
 
 
 def system_prefers_dark() -> bool:
-    """读注册表判断系统深色模式（Win10 1809+）。"""
-    try:
-        from PySide6.QtCore import QSettings
-        s = QSettings(r"HKEY_CURRENT_USER\Software\Microsoft\Windows"
-                      r"\CurrentVersion\Themes\Personalize", QSettings.NativeFormat)
-        return int(s.value("AppsUseLightTheme", 1)) == 0
-    except Exception:
-        return False
+    """Read the native platform appearance through Qt (macOS/Windows/Linux)."""
+    app = QApplication.instance()
+    return bool(app and app.styleHints().colorScheme() == Qt.ColorScheme.Dark)
 
 
 def palette(mode: str = "auto") -> dict:
@@ -92,7 +87,7 @@ def palette(mode: str = "auto") -> dict:
 def qss(p: dict, radius: int = 8) -> str:
     """全局样式表。radius 卡片 8 / 悬浮条 10 / 弹窗 12 三档由调用方传入。"""
     return f"""
-    QWidget {{ color: {p['fg']}; font-family: "Microsoft YaHei UI", "Microsoft YaHei"; }}
+    QWidget {{ color: {p['fg']}; }}
     QLabel#weak {{ color: {p['fg_sub']}; }}
     QLabel#strong {{ color: {p['fg']}; font-weight: 600; }}
     QFrame#card {{

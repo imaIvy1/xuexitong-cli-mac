@@ -16,7 +16,8 @@ import re
 import sys
 import time
 import traceback
-from ctypes import wintypes
+if sys.platform == "win32":
+    from ctypes import wintypes
 from datetime import datetime
 from pathlib import Path
 
@@ -31,10 +32,10 @@ sys.path.insert(0, str(ROOT))
 from PySide6.QtCore import (QAbstractNativeEventFilter, Qt, QMetaObject,  # noqa: E402
                             QThread, QTimer, QUrl, Signal, QObject)
 from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
-from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap  # noqa: E402
+from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap, QFontDatabase, QKeySequence, QCursor  # noqa: E402
 from PySide6.QtNetwork import QLocalServer, QLocalSocket  # noqa: E402
 from PySide6.QtWidgets import (QApplication, QMenu,  # noqa: E402
-                               QSystemTrayIcon)
+                               QSystemTrayIcon, QMenuBar)
 
 from assistant.notify import Notifier  # noqa: E402
 from assistant.reminders import ReminderEngine, in_class_now, in_dnd  # noqa: E402
@@ -52,7 +53,7 @@ from xuexitong_mcp.client import ChaoxingClient  # noqa: E402
 
 log = logging.getLogger("app")
 LOCK_NAME = "xuexitong-assistant-singleton"
-QML_DIR = ROOT / "assistant" / "ui" / "qml"
+QML_DIR = Path(__file__).resolve().parent / "ui" / "qml"
 
 FULL_SCAN_HOURS = 20   # 每天最多 1 次全量基线重扫（距上次 >20h 才做）
 
@@ -321,6 +322,7 @@ class ScanWorker(QObject):
 class _ToastRelay(QObject):
     """Toast 点击回调（windows-toasts 监听线程）→ Qt 信号 → UI 线程。"""
     triggered = Signal(str)
+    message = Signal(str, str)
 
 
 class App:
@@ -331,8 +333,10 @@ class App:
         self.notifier = Notifier(self.settings)
 
         self.qapp = QApplication(sys.argv)
+        self._closing = False
         self.qapp.setQuitOnLastWindowClosed(False)
         self.qapp.setApplicationName("学习通小助手")
+        self.qapp.setFont(QFontDatabase.systemFont(QFontDatabase.GeneralFont))
 
         # 两个 QML 窗：悬浮小窗(Main) + 详情窗(DetailWindow)，同引擎同 Theme
         self.bridge = Bridge(get_position=self._load_pos,
@@ -375,6 +379,10 @@ class App:
         self.worker.moveToThread(self.worker_thread)
 
         self._build_tray()
+        self._toast_relay.message.connect(self._show_native_notification)
+        self.notifier.native_notify = self._toast_relay.message.emit
+        self._build_native_menu()
+        self._apply_appearance()
         self._wire()
         self._register_hotkey()
         self._schedule(startup_scan=kwargs.get("startup_scan", True))
@@ -513,6 +521,54 @@ class App:
             if reason == QSystemTrayIcon.DoubleClick else None)
         self.tray.show()
 
+    def _show_native_notification(self, title: str, body: str) -> None:
+        if self.tray.supportsMessages():
+            self.tray.showMessage(title, body, QSystemTrayIcon.Information)
+        else:
+            log.info("桌面通知不可用：%s — %s", title, body)
+
+    def _build_native_menu(self) -> None:
+        if sys.platform != "darwin":
+            return
+        self.menu_bar = QMenuBar()
+        self.menu_bar.setNativeMenuBar(True)
+        menu = self.menu_bar.addMenu("学习通小助手")
+        for title, shortcut, callback, role in (
+            ("设置…", "Ctrl+,", lambda: self.show_detail("设置"), QAction.PreferencesRole),
+            ("显示详情", "Ctrl+1", self.show_detail, QAction.NoRole),
+            ("显示/隐藏小窗", "Ctrl+Shift+C", self.toggle_widget, QAction.NoRole),
+            ("立即巡检", "Ctrl+R", self.scan_now, QAction.NoRole),
+            ("关闭窗口", "Ctrl+W", self._close_active_window, QAction.NoRole),
+            ("退出学习通小助手", "Ctrl+Q", self.quit, QAction.QuitRole),
+        ):
+            action = QAction(title, self.menu_bar)
+            action.setShortcut(QKeySequence(shortcut))  # Qt maps Ctrl to Command on macOS.
+            action.setMenuRole(role)
+            action.triggered.connect(lambda checked=False, cb=callback: cb())
+            menu.addAction(action)
+
+    def _close_active_window(self) -> None:
+        if self.detail_win.isVisible():
+            QMetaObject.invokeMethod(self.detail_win, "requestClose")
+        else:
+            self.widget.hide()
+
+    def _apply_appearance(self) -> None:
+        mode = self.settings.get("theme", "auto")
+        self.qapp.styleHints().setColorScheme({
+            "light": Qt.ColorScheme.Light, "dark": Qt.ColorScheme.Dark
+        }.get(mode, Qt.ColorScheme.Unknown))
+        from PySide6.QtQml import QQmlComponent
+        component = QQmlComponent(self.engine)
+        component.setData(b'import QtQuick; import "." as Ui; QtObject { '
+                          b'function apply(mode) { Ui.Theme.mode = mode } }',
+                          QUrl.fromLocalFile(str(QML_DIR / "Appearance.qml")))
+        obj = component.create()
+        if obj is None:
+            raise RuntimeError(str(component.errors()))
+        obj.apply(self.settings.get("theme", "auto"))
+        obj.deleteLater()
+
     def _schedule(self, startup_scan: bool = True) -> None:
         """周期 + 补跑：启动时距 last_scan 超一个周期立即扫。"""
         self.worker_thread.start()
@@ -540,6 +596,8 @@ class App:
 
     def _register_hotkey(self) -> None:
         """Alt+Shift+C 全局唤起/隐藏小窗（被占用则静默跳过，托盘仍可用）。"""
+        if sys.platform != "win32":
+            return
         import ctypes
         try:
             hwnd = int(self.widget.winId())
@@ -617,7 +675,7 @@ class App:
                    g.top() + (g.height() - int(w.height())) // 3))
 
     def _on_detail_visibility(self, visible: bool) -> None:
-        if visible:
+        if self._closing or visible:
             return
         self._detail_pos = (int(self.detail_win.x()), int(self.detail_win.y()))
         if self._mini_visible_before_detail:
@@ -756,9 +814,9 @@ class App:
             if dnd and bad:
                 return False, "免打扰时段格式不对，应像 23:00-07:30"
             merged["dnd"] = dnd
-            save_settings(merged)
             from assistant.ui.detail import set_autostart
             set_autostart(bool(merged.get("autostart")))
+            save_settings(merged)
             self.on_settings(merged)
             return True, "已保存"
         except Exception as e:
@@ -789,6 +847,7 @@ class App:
 
     def on_settings(self, new_settings: dict) -> None:
         self.settings = new_settings
+        self._apply_appearance()
         self.worker.settings = new_settings
         self.notifier.settings = new_settings
         interval = max(5, new_settings.get("scan_interval_min", 30)) * 60 * 1000
@@ -815,6 +874,9 @@ class App:
         return code
 
     def quit(self) -> None:
+        if self._closing:
+            return
+        self._closing = True
         self.store.save()
         self._unregister_hotkey()
         self.worker.stopping = True   # 让扫描循环尽快收尾
@@ -822,6 +884,10 @@ class App:
         # 一轮扫描分钟级，等满 30s 防 QThread 活着被析构崩溃
         if not self.worker_thread.wait(30000):
             log.warning("worker 线程 30s 未收尾，放弃等待")
+        # Destroy QML before Python-owned context objects are torn down.
+        from shiboken6 import delete
+        delete(self.engine)
+        self.tray.hide()
         self.qapp.quit()
 
 
@@ -848,6 +914,11 @@ def _grab_mutex() -> bool:
     use_last_error=True + ctypes.get_last_error() 紧跟原生调用。
     """
     global _mutex_handle
+    if sys.platform != "win32":
+        from PySide6.QtCore import QLockFile, QStandardPaths
+        _mutex_handle = QLockFile(str(Path(QStandardPaths.writableLocation(
+            QStandardPaths.TempLocation)) / f"{LOCK_NAME}-{os.getuid()}.lock"))
+        return _mutex_handle.tryLock(0)
     import ctypes
     ERROR_ALREADY_EXISTS = 183
     k32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -860,16 +931,17 @@ def main() -> int:
                         format="%(asctime)s %(name)s %(levelname)s %(message)s")
     if "--screenshot" in sys.argv:
         return _screenshot_mode()
+    if not _grab_mutex():
+        print("学习通小助手已在运行（互斥锁被占）")
+        return 0
     if already_running():
         print("学习通小助手已在运行（托盘可见）")
-        return 0
-    if not _grab_mutex():   # 双冷启动竞态：管道探测都失败时靠互斥量兜底
-        print("学习通小助手已在运行（互斥锁被占）")
         return 0
     app = App()
     server = QLocalServer()
     if not server.listen(LOCK_NAME):   # 锁没拿到（同名管道被占）必须退出，
-        print("学习通小助手已在运行（锁被占用）")  # 否则就双实例双托盘了
+        print("学习通小助手已在运行（锁被占用）")
+        app.quit()
         return 0
     app.widget.show()   # 桌面小组件的意义就是开机可见；藏进托盘走"显示/隐藏"
     return app.run()
@@ -962,7 +1034,7 @@ def _screenshot_mode() -> int:
         try:
             import ctypes
             sg = app.qapp.primaryScreen().geometry()
-            ctypes.windll.user32.SetCursorPos(sg.right() - 4, sg.bottom() - 4)
+            QCursor.setPos(sg.right() - 4, sg.bottom() - 4)
         except Exception:
             pass
         shoot(base + "_mini.png")

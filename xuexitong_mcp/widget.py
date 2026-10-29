@@ -20,6 +20,7 @@ import datetime as dt
 import json
 import os
 import queue
+import sys
 import threading
 
 # ---------------------------------------------------------------- 纯逻辑（不依赖 tkinter，可单测）
@@ -215,16 +216,23 @@ class Widget:
         self._pos = [100, 100]  # 窗口位置自跟踪：Tk 的 geometry 只给尺寸/只给位置
         # 时会丢掉另一半（overrideredirect 实测），所以每次都带全量
 
+        if sys.platform != "win32":
+            for theme in THEMES.values():
+                theme["trans"] = theme["card"]
+
         cfg = self._load_config()
         self.theme_name = cfg.get("theme") if cfg.get("theme") in THEMES else "light"
         self.topmost = bool(cfg.get("topmost", True))
 
         root = tk.Tk()
         self.root = root
+        from tkinter import font as tkfont
+        self.font_family = tkfont.nametofont("TkDefaultFont").actual("family")
         self.var_topmost = tk.BooleanVar(value=self.topmost)
         root.overrideredirect(True)
         root.attributes("-topmost", self.topmost)
-        root.attributes("-transparentcolor", THEMES[self.theme_name]["trans"])
+        if sys.platform == "win32":
+            root.attributes("-transparentcolor", THEMES[self.theme_name]["trans"])
         # 注意：不要用 -alpha 半透明。Windows 分层窗口的 alpha 模式与
         # colorkey 抠透明互斥，一旦设过 alpha<1，圆角外的色键就再也抠不掉
         root.title("学习通小助手")
@@ -247,6 +255,9 @@ class Widget:
         self.cv.bind("<Double-Button-1>", lambda e: self._toggle())
         self.header.bind("<Double-Button-1>", lambda e: self._toggle())
         self.cv.bind("<Button-3>", self._menu)
+        if sys.platform == "darwin":
+            self.cv.bind("<Button-2>", self._menu)
+            self.cv.bind("<Control-Button-1>", self._menu)
 
         self._place_initial(cfg)
         self._render(changed_only=False)  # 先画空卡，数据到了再填
@@ -264,7 +275,8 @@ class Widget:
 
     def _switch_theme(self):
         self.theme_name = "dark" if self.theme_name == "light" else "light"
-        self.root.attributes("-transparentcolor", self.T["trans"])
+        if sys.platform == "win32":
+            self.root.attributes("-transparentcolor", self.T["trans"])
         # 框架底色与头部按钮（hover 闭包捕获了旧主题色）必须一起重建，
         # 否则深色下会残留白色行距和浅色图标
         T = self.T
@@ -283,9 +295,9 @@ class Widget:
         for wdg in self.header.winfo_children():
             wdg.destroy()
         def btn(text, cmd, bold=False):
-            # 字体用雅黑自有字形（Segoe UI 的 ✕ 等在部分环境缺字形，渲染成破图）
-            font = (("Segoe UI", 10, "bold") if bold
-                    else ("Microsoft YaHei UI", 9))
+            # Follow Tk’s native system UI font.
+            font = ((self.font_family, 10, "bold") if bold
+                    else (self.font_family, 9))
             b = tk.Label(self.header, text=text, bg=T["card"], fg=T["icon"],
                          width=2, font=font, cursor="hand2")
             b._no_drag = True
@@ -301,17 +313,17 @@ class Widget:
         self.b_close.pack(side="right")
 
         self.dot = tk.Label(self.header, text="●", bg=T["card"], fg=T["green"],
-                            font=("Segoe UI", 9))
+                            font=(self.font_family, 9))
         self.dot.pack(side="left", padx=(0, 5))
         title = tk.Label(self.header, text="学习通小助手", bg=T["card"], fg=T["fg"],
-                         font=("Microsoft YaHei UI", 10, "bold"))
+                         font=(self.font_family, 10, "bold"))
         title.pack(side="left")
         self._enable_drag(title)
         self.badge = tk.Label(self.header, text="", bg=T["card"], fg=T["blue"],
-                              font=("Microsoft YaHei UI", 8, "bold"))
+                              font=(self.font_family, 8, "bold"))
         self.badge.pack(side="left", padx=(6, 0))
         self.date_lbl = tk.Label(self.header, text="", bg=T["card"], fg=T["sub"],
-                                 font=("Microsoft YaHei UI", 8), anchor="w")
+                                 font=(self.font_family, 8), anchor="w")
         self.date_lbl.pack(side="left", padx=(8, 0))
         self._enable_drag(self.date_lbl)
 
@@ -434,13 +446,13 @@ class Widget:
             if kind == "segs":  # 一行内分段着色
                 for text, color, bold, sz in it["segs"]:
                     tk.Label(holder, text=text, bg=T["card"], fg=color, anchor="w",
-                             font=("Microsoft YaHei UI", 9 + sz,
+                             font=(self.font_family, 9 + sz,
                                    "bold" if bold else "normal")).pack(
                         side="left", padx=(0, 2))
             else:
                 tk.Label(holder, text=it["text"], bg=T["card"], fg=it["color"],
                          anchor="w",
-                         font=("Microsoft YaHei UI", 8 if it["small"] else 9,
+                         font=(self.font_family, 8 if it["small"] else 9,
                                "bold" if it["bold"] else "normal")).pack(
                     side="left", fill="x")
             holder.pack(fill="x", pady=1)
@@ -461,7 +473,7 @@ class Widget:
         row.pack(fill="x", pady=(3, 0))
         self.b_toggle = tk.Label(row, text="收起 ▲" if self.expanded else "详情 ▼",
                                  bg=T["hover"] if self.expanded else T["card"],
-                                 fg=T["sub"], font=("Microsoft YaHei UI", 8),
+                                 fg=T["sub"], font=(self.font_family, 8),
                                  padx=8, pady=1, cursor="hand2")
         self.b_toggle._no_drag = True
         self.b_toggle.pack(side="right")

@@ -87,7 +87,7 @@ Item {
                     readonly property real endOpacity:
                         (modelData.urgency === "expired"
                          || modelData.urgency === "unknown") ? 0.62 : 1
-                    color: "#FFFFFF"
+                    color: Ui.Theme.card
                     readonly property color urgencyColor:
                         modelData.urgency === "high" ? Ui.Theme.danger
                         : modelData.urgency === "mid" ? Ui.Theme.warn
@@ -214,7 +214,7 @@ Item {
             Rectangle {
                 visible: Bridge.ddlRows.length === 0
                 width: parent.width; height: 88; radius: Ui.Theme.radiusLg
-                color: "#FFFFFF"
+                color: Ui.Theme.card
                 Column {
                     anchors.centerIn: parent; spacing: 6
                     Item {

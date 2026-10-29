@@ -65,7 +65,7 @@ Item {
             Rectangle {
                 visible: Bridge.dayTotal > 0 || Bridge.progressLeft > 0
                 width: parent.width; height: 40; radius: Ui.Theme.radiusMd
-                color: "#FFFFFF"
+                color: Ui.Theme.card
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.left: parent.left; anchors.leftMargin: 10
@@ -151,7 +151,7 @@ Item {
                         readonly property bool isDone: modelData.state === "done"
                         // FLstyle：白卡无描边；状态 = 左缘 3px 竖条 + 文字/chip，
                         // 不满染整卡（原蓝底+蓝边整卡换装废弃）
-                        color: "#FFFFFF"
+                        color: Ui.Theme.card
                         Rectangle {
                             visible: lessonCard.isCur || lessonCard.isPar
                             x: 0; width: 3
@@ -277,7 +277,7 @@ Item {
             Rectangle {
                 visible: Bridge.lessons.length === 0
                 width: parent.width; height: 92; radius: Ui.Theme.radiusLg
-                color: "#FFFFFF"
+                color: Ui.Theme.card
                 Column {
                     anchors.centerIn: parent; spacing: 6
                     Item {
@@ -338,7 +338,7 @@ Item {
                 }
                 visible: first !== null
                 width: parent.width; height: 48; radius: Ui.Theme.radiusLg
-                color: "#FFFFFF"
+                color: Ui.Theme.card
                 Rectangle {
                     x: 0; width: 3
                     anchors.top: parent.top; anchors.topMargin: 12
@@ -382,7 +382,7 @@ Item {
             Rectangle {
                 visible: Bridge.examSummary !== ""
                 width: parent.width; height: 48; radius: Ui.Theme.radiusLg
-                color: "#FFFFFF"
+                color: Ui.Theme.card
                 Rectangle {
                     x: 0; width: 3
                     anchors.top: parent.top; anchors.topMargin: 12

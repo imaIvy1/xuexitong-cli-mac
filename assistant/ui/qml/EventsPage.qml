@@ -85,7 +85,7 @@ Item {
                         height: evItem.hasDetail ? 56 : 44
                         anchors.verticalCenter: parent.verticalCenter
                         radius: Ui.Theme.radiusLg
-                        color: "#FFFFFF"
+                        color: Ui.Theme.card
                         // hover 高亮独立层：透明度动画，避免 color 插值灰影
                         Rectangle {
                             anchors.fill: parent; radius: parent.radius
@@ -181,7 +181,7 @@ Item {
             Rectangle {
                 visible: Bridge.events.length === 0
                 width: parent.width; height: 88; radius: Ui.Theme.radiusLg
-                color: "#FFFFFF"
+                color: Ui.Theme.card
                 Column {
                     anchors.centerIn: parent; spacing: 6
                     Item {

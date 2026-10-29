@@ -77,8 +77,9 @@ macOS 使用 CLI / MCP 时，建议在虚拟环境中运行 `python -m pip insta
 `pywin32` 只在 Windows 安装。MCP SDK 限制为 1.x，因为当前服务使用
 `mcp.server.fastmcp.FastMCP` 接口。
 
-新版桌面助手 `python -m assistant.app` 仍依赖 Windows 注册表、命名互斥锁、
-全局热键和 Toast，尚未适配 macOS；安装依赖成功不代表桌面助手可用。
+新版桌面助手通过 `python -m assistant.app` 启动，现已增加 macOS 适配：
+系统字体、明暗外观、原生详情窗口与菜单，以及按平台分流的自启和通知。
+安装和验证说明见 [macOS 适配说明](docs/MACOS.md)。Windows 仍需回归验证。
 `xuexitong-assistant` 是旧 Tk 窗口入口，也不代表新版桌面助手的 Mac 支持。
 `xxt courses --json` 可输出课程 JSON。`whoami` 的学校显示为 `?` 表示未从
 个人页面解析到学校名称，不能据此判断登录失败；学校解析仍需真实页面验证。

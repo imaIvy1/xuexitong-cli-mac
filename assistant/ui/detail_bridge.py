@@ -134,7 +134,8 @@ class DetailBridge(QObject):
             "autostart", "email_enabled", "email_to", "smtp_host",
             "smtp_user", "smtp_pass") if k in vals})
         ok, msg = self._save_cb(merged)
-        self._settings = merged
+        if ok:
+            self._settings = merged
         self.settingsApplied.emit(msg or ("已保存" if ok else "保存失败"))
 
     @Slot()
